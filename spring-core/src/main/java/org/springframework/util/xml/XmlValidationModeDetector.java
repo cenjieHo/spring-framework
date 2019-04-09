@@ -27,6 +27,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Detects whether an XML stream is using DTD- or XSD-based validation.
+ * 探测XML流使用的是DTD验证还是XSD验证
  *
  * @author Rob Harrop
  * @author Juergen Hoeller
@@ -91,18 +92,21 @@ public class XmlValidationModeDetector {
 		// Peek into the file to look for DOCTYPE.
 		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 		try {
+			//是否为DTD校验模式，默认为false，也就是默认为XSD校验模式
 			boolean isDtdValidated = false;
 			String content;
+			//循环读取XML文件的内容
 			while ((content = reader.readLine()) != null) {
 				content = consumeCommentTokens(content);
+				//如果不在注释内，或者内容为空，那么直接跳过
 				if (this.inComment || !StringUtils.hasText(content)) {
 					continue;
 				}
-				if (hasDoctype(content)) {
+				if (hasDoctype(content)) {	//判断内容中如果包含有 "DOCTYPE"，则为DTD验证模式
 					isDtdValidated = true;
 					break;
 				}
-				if (hasOpeningTag(content)) {
+				if (hasOpeningTag(content)) {	//判断如果这一行包含 < ，并且 < 紧跟着的是字母，则为XSD验证模式
 					// End of meaningful data...
 					break;
 				}
@@ -110,6 +114,8 @@ public class XmlValidationModeDetector {
 			return (isDtdValidated ? VALIDATION_DTD : VALIDATION_XSD);
 		}
 		catch (CharConversionException ex) {
+			// 无法探测出到底要使用哪种验证模式，所以将决定权交给调用者。
+			// 在调用者的实现中（XmlBeanDefinationReader#getValidationModeForResource()），发现是VALIDATION_AUTO则使用XSD模式。
 			// Choked on some character encoding...
 			// Leave the decision up to the caller.
 			return VALIDATION_AUTO;
@@ -149,11 +155,11 @@ public class XmlValidationModeDetector {
 	 */
 	@Nullable
 	private String consumeCommentTokens(String line) {
-		if (!line.contains(START_COMMENT) && !line.contains(END_COMMENT)) {
+		if (!line.contains(START_COMMENT) && !line.contains(END_COMMENT)) {	//判断有没有注释标记，如果没有则直接返回行
 			return line;
 		}
 		String currLine = line;
-		while ((currLine = consume(currLine)) != null) {
+		while ((currLine = consume(currLine)) != null) {	//consume()方法判断inComment是否为false，如果为false，那么验证这行有 <!--，那么将inComment设为true；否则，说明这行有 -->，将其设为false
 			if (!this.inComment && !currLine.trim().startsWith(START_COMMENT)) {
 				return currLine;
 			}

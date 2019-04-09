@@ -29,6 +29,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.lang.Nullable;
 
 /**
+ *
+ * 实现 EntityResolver 接口，Spring Bean dtd 解码器，用来从 classpath 或者 jar 文件中加载 dtd 。
+ *
  * {@link EntityResolver} implementation for the Spring beans DTD,
  * to load the DTD from the Spring class path (or JAR file).
  *
@@ -50,7 +53,16 @@ public class BeansDtdResolver implements EntityResolver {
 
 	private static final Log logger = LogFactory.getLog(BeansDtdResolver.class);
 
-
+	/**
+	 * 该方法仅仅对systemId做了一个简单的校验（不为null且以 .dtd 结尾），然后判断从最后一个 / 开始，内容中是否包含"spring-beans"，
+	 * 校验成功后，构造一个 InputSource 对象，并设置 publicId、systemId 属性，
+	 * 如果校验失败，则返回null，调用者将默认使用网络下载DTD文件
+	 *
+	 * @param publicId "-//SPRING//DTD BEAN 2.0//EN"
+	 * @param systemId "http://www.springframework.org/dtd/spring-beans.dtd"
+	 * @return
+	 * @throws IOException
+	 */
 	@Override
 	@Nullable
 	public InputSource resolveEntity(@Nullable String publicId, @Nullable String systemId) throws IOException {
@@ -59,16 +71,18 @@ public class BeansDtdResolver implements EntityResolver {
 					"] and system ID [" + systemId + "]");
 		}
 
+		//必须以 .dtd 结尾
 		if (systemId != null && systemId.endsWith(DTD_EXTENSION)) {
-			int lastPathSeparator = systemId.lastIndexOf('/');
-			int dtdNameStart = systemId.indexOf(DTD_NAME, lastPathSeparator);
-			if (dtdNameStart != -1) {
-				String dtdFile = DTD_NAME + DTD_EXTENSION;
+			int lastPathSeparator = systemId.lastIndexOf('/');			// 获取最后一个 / 的位置
+			int dtdNameStart = systemId.indexOf(DTD_NAME, lastPathSeparator);	// 从最后一个 / 的位置开始，获取 spring-beans 的位置
+			if (dtdNameStart != -1) {	//如果找到了
+				String dtdFile = DTD_NAME + DTD_EXTENSION;		// spring-beans.dtd
 				if (logger.isTraceEnabled()) {
 					logger.trace("Trying to locate [" + dtdFile + "] in Spring jar on classpath");
 				}
 				try {
-					Resource resource = new ClassPathResource(dtdFile, getClass());
+					Resource resource = new ClassPathResource(dtdFile, getClass());	// 创建 ClassPathResource 对象
+					// 创建 InputSource 对象，并设置 publicId、systemId 属性
 					InputSource source = new InputSource(resource.getInputStream());
 					source.setPublicId(publicId);
 					source.setSystemId(systemId);
@@ -84,7 +98,7 @@ public class BeansDtdResolver implements EntityResolver {
 				}
 			}
 		}
-
+		// 使用默认行为，从网络上下载
 		// Fall back to the parser's default behavior.
 		return null;
 	}

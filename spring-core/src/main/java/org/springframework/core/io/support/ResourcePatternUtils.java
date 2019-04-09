@@ -44,8 +44,8 @@ public abstract class ResourcePatternUtils {
 	 */
 	public static boolean isUrl(@Nullable String resourceLocation) {
 		return (resourceLocation != null &&
-				(resourceLocation.startsWith(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX) ||
-						ResourceUtils.isUrl(resourceLocation)));
+				(resourceLocation.startsWith(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX) ||		// classpath 或者 classpath* 在这里也算URL，会返回true
+						ResourceUtils.isUrl(resourceLocation)));	// 能构建出URL，会返回true
 	}
 
 	/**

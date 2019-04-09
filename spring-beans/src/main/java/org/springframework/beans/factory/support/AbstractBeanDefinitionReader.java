@@ -210,17 +210,21 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 	 * @see #loadBeanDefinitions(org.springframework.core.io.Resource[])
 	 */
 	public int loadBeanDefinitions(String location, @Nullable Set<Resource> actualResources) throws BeanDefinitionStoreException {
+		// 获得 ResourceLoader 对象
 		ResourceLoader resourceLoader = getResourceLoader();
 		if (resourceLoader == null) {
 			throw new BeanDefinitionStoreException(
 					"Cannot import bean definitions from location [" + location + "]: no ResourceLoader available");
 		}
-
+		// 如果 resourceLoader 是 ResourcePatternResolver 类型的（可以获得Resource数组）
 		if (resourceLoader instanceof ResourcePatternResolver) {
 			// Resource pattern matching available.
 			try {
+				// 将 ResourceLoader 向下转换为 ResourcePatternResolver，获得 Resource 数组，因为Pattern模式匹配下，可能有多个 Resource，比如Ant风格的location
 				Resource[] resources = ((ResourcePatternResolver) resourceLoader).getResources(location);
+				// 加载 BeanDefinition 们
 				int loadCount = loadBeanDefinitions(resources);
+				// 添加到 actualResources 中
 				if (actualResources != null) {
 					for (Resource resource : resources) {
 						actualResources.add(resource);
@@ -229,7 +233,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 				if (logger.isDebugEnabled()) {
 					logger.debug("Loaded " + loadCount + " bean definitions from location pattern [" + location + "]");
 				}
-				return loadCount;
+				return loadCount;	// 返回 bean definitions 的数目
 			}
 			catch (IOException ex) {
 				throw new BeanDefinitionStoreException(
@@ -238,15 +242,16 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 		}
 		else {
 			// Can only load single resources by absolute URL.
+			// 获得 Resource 对象
 			Resource resource = resourceLoader.getResource(location);
-			int loadCount = loadBeanDefinitions(resource);
+			int loadCount = loadBeanDefinitions(resource);	// 加载 BeanDefinition 们
 			if (actualResources != null) {
-				actualResources.add(resource);
+				actualResources.add(resource);	// 添加到 actualResources 中
 			}
 			if (logger.isDebugEnabled()) {
 				logger.debug("Loaded " + loadCount + " bean definitions from location [" + location + "]");
 			}
-			return loadCount;
+			return loadCount;	// 返回 bean definitions 的数目
 		}
 	}
 

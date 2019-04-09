@@ -45,7 +45,7 @@ import org.springframework.util.xml.XmlValidationModeDetector;
  * @author Juergen Hoeller
  * @since 2.0
  */
-public class DefaultDocumentLoader implements DocumentLoader {
+public class DefaultDocumentLoader implements DocumentLoader {		//DocumentLoader的默认实现
 
 	/**
 	 * JAXP attribute used to configure the schema language for validation.
@@ -68,12 +68,14 @@ public class DefaultDocumentLoader implements DocumentLoader {
 	@Override
 	public Document loadDocument(InputSource inputSource, EntityResolver entityResolver,
 			ErrorHandler errorHandler, int validationMode, boolean namespaceAware) throws Exception {
-
+		//创建 DocumentBuilderFactory
 		DocumentBuilderFactory factory = createDocumentBuilderFactory(validationMode, namespaceAware);
 		if (logger.isDebugEnabled()) {
 			logger.debug("Using JAXP provider [" + factory.getClass().getName() + "]");
 		}
+		//创建 DocumentBuilder
 		DocumentBuilder builder = createDocumentBuilder(factory, entityResolver, errorHandler);
+		//由上面创建好的DocumentBuilder解析 inputSource 返回 Document
 		return builder.parse(inputSource);
 	}
 
@@ -88,14 +90,16 @@ public class DefaultDocumentLoader implements DocumentLoader {
 	protected DocumentBuilderFactory createDocumentBuilderFactory(int validationMode, boolean namespaceAware)
 			throws ParserConfigurationException {
 
+		// 创建 DocumentBuilderFactory
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		// 设置命名空间支持
 		factory.setNamespaceAware(namespaceAware);
 
-		if (validationMode != XmlValidationModeDetector.VALIDATION_NONE) {
-			factory.setValidating(true);
-			if (validationMode == XmlValidationModeDetector.VALIDATION_XSD) {
+		if (validationMode != XmlValidationModeDetector.VALIDATION_NONE) {		//如果验证模式不为“不验证”
+			factory.setValidating(true);										//开启验证
+			if (validationMode == XmlValidationModeDetector.VALIDATION_XSD) {	//如果验证模式为XSD
 				// Enforce namespace aware for XSD...
-				factory.setNamespaceAware(true);
+				factory.setNamespaceAware(true);	//强制设置命名空间支持
 				try {
 					factory.setAttribute(SCHEMA_LANGUAGE_ATTRIBUTE, XSD_SCHEMA_LANGUAGE);
 				}
@@ -109,7 +113,7 @@ public class DefaultDocumentLoader implements DocumentLoader {
 				}
 			}
 		}
-
+		//返回创建好的DocumentBuilderFactory
 		return factory;
 	}
 
@@ -127,14 +131,17 @@ public class DefaultDocumentLoader implements DocumentLoader {
 	protected DocumentBuilder createDocumentBuilder(DocumentBuilderFactory factory,
 			@Nullable EntityResolver entityResolver, @Nullable ErrorHandler errorHandler)
 			throws ParserConfigurationException {
-
+		//由之前创建好的DocumentBuilderFactory生产出DocumentBuilder
 		DocumentBuilder docBuilder = factory.newDocumentBuilder();
 		if (entityResolver != null) {
+			//设置 EntityResolver 属性
 			docBuilder.setEntityResolver(entityResolver);
 		}
 		if (errorHandler != null) {
+			//设置 ErrorHandler 属性
 			docBuilder.setErrorHandler(errorHandler);
 		}
+		//返回创建好的DocumentBuilder
 		return docBuilder;
 	}
 
