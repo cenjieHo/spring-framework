@@ -337,7 +337,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					// 以下 getSingleton() 方法从头开始加载 Bean
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
-							return createBean(beanName, mbd, args);
+							return createBean(beanName, mbd, args);		// 核心：createBean()方法，所有Bean实例的创建，都会委托给该方法实现
 						}
 						catch (BeansException ex) {
 							// Explicitly remove instance from singleton cache: It might have been put there
@@ -1411,8 +1411,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (System.getSecurityManager() != null) {
 				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>) () ->
 					doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
-			}
-			else {
+			} else {
 				return doResolveBeanClass(mbd, typesToMatch);
 			}
 		}

@@ -66,24 +66,30 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	/**
 	 * Constant that indicates no autowiring at all.
+	 * 表示不使用自动装配
 	 * @see #setAutowireMode
 	 */
 	public static final int AUTOWIRE_NO = AutowireCapableBeanFactory.AUTOWIRE_NO;
 
 	/**
 	 * Constant that indicates autowiring bean properties by name.
+	 * 表示按名字自动装配 Bean 属性
 	 * @see #setAutowireMode
 	 */
 	public static final int AUTOWIRE_BY_NAME = AutowireCapableBeanFactory.AUTOWIRE_BY_NAME;
 
 	/**
 	 * Constant that indicates autowiring bean properties by type.
+	 * 表示按类型自动装配 Bean 属性
+	 * 比如：假设 Book 有一个 Author 类型的属性，如果容器中找到 Author 类型的 Bean 时，就会自动把它装配给 Book 的 Author 属性。
 	 * @see #setAutowireMode
 	 */
 	public static final int AUTOWIRE_BY_TYPE = AutowireCapableBeanFactory.AUTOWIRE_BY_TYPE;
 
 	/**
 	 * Constant that indicates autowiring a constructor.
+	 * 同样表示按类型自动装配 Bean 属性，只不过指的是构造函数的情况
+	 * 比如：假设 Book 有一个构造函数，它有一个 Author 类型的入参。如果容器中找到 Author 类型的 Bean 时，就会自动装配；如果没有找到，则抛出异常。
 	 * @see #setAutowireMode
 	 */
 	public static final int AUTOWIRE_CONSTRUCTOR = AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR;
@@ -91,6 +97,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	/**
 	 * Constant that indicates determining an appropriate autowire strategy
 	 * through introspection of the bean class.
+	 * 它首先会尝试使用 constructor 进行自动装配，如果失败再尝试使用 byType。不过，它在Spring3.0之后已经被弃用。
+	 *
 	 * @see #setAutowireMode
 	 * @deprecated as of Spring 3.0: If you are using mixed autowiring strategies,
 	 * use annotation-based autowiring for clearer demarcation of autowiring needs.
@@ -734,6 +742,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	/**
 	 * Return whether to allow access to non-public constructors and methods.
+	 * 返回是否允许访问非public的构造函数和方法。
 	 */
 	public boolean isNonPublicAccessAllowed() {
 		return this.nonPublicAccessAllowed;
@@ -1068,9 +1077,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
 		// Check that lookup methods exists.
-		if (hasMethodOverrides()) {
+		if (hasMethodOverrides()) {		// 如果检测到存在methodOverrides，则获取所有的override method
 			Set<MethodOverride> overrides = getMethodOverrides().getOverrides();
-			synchronized (overrides) {
+			synchronized (overrides) {	// 依次调用 prepareMethodOverride 方法，计算该方法名的个数决定是抛出异常或设置重载
 				for (MethodOverride mo : overrides) {
 					prepareMethodOverride(mo);
 				}
@@ -1087,12 +1096,14 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	protected void prepareMethodOverride(MethodOverride mo) throws BeanDefinitionValidationException {
 		int count = ClassUtils.getMethodCountForName(getBeanClass(), mo.getMethodName());
-		if (count == 0) {
+		if (count == 0) {			// 如果个数为0，则抛出异常
 			throw new BeanDefinitionValidationException(
 					"Invalid method override: no method with name '" + mo.getMethodName() +
 					"' on class [" + getBeanClassName() + "]");
-		}
-		else if (count == 1) {
+		} else if (count == 1) {	// 如果个数为1，则设置该方法没有被重载
+			// 若一个类中存在多个重载方法，则在方法调用的时候还需要根据参数类型来判断到底重载的是哪个方法，
+			// 因此这里实际上是做了一个优化，设置 overloaded = false 则表示方法没有重载，
+			// 在后续调用的时候便可以直接找到方法而不需要进行方法参数的校验
 			// Mark override as not overloaded, to avoid the overhead of arg type checking.
 			mo.setOverloaded(false);
 		}
