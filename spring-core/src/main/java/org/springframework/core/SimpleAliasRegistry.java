@@ -49,23 +49,24 @@ public class SimpleAliasRegistry implements AliasRegistry {
 
 	@Override
 	public void registerAlias(String name, String alias) {
+		// 校验name、alias
 		Assert.hasText(name, "'name' must not be empty");
 		Assert.hasText(alias, "'alias' must not be empty");
 		synchronized (this.aliasMap) {
-			if (alias.equals(name)) {
+			if (alias.equals(name)) {	// 如果alias == name，则去掉（忽略）alias
 				this.aliasMap.remove(alias);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Alias definition '" + alias + "' ignored since it points to same name");
 				}
-			}
-			else {
-				String registeredName = this.aliasMap.get(alias);
-				if (registeredName != null) {
-					if (registeredName.equals(name)) {
+			} else {
+				String registeredName = this.aliasMap.get(alias);	// 获取该alias对应的beanName
+				if (registeredName != null) {	// 如果已经存在
+					if (registeredName.equals(name)) {	// 并且相同
 						// An existing alias - no need to re-register
+						// 那么直接忽略即可
 						return;
 					}
-					if (!allowAliasOverriding()) {
+					if (!allowAliasOverriding()) {	// 如果不允许覆盖，抛出异常
 						throw new IllegalStateException("Cannot define alias '" + alias + "' for name '" +
 								name + "': It is already registered for name '" + registeredName + "'.");
 					}
@@ -74,8 +75,8 @@ public class SimpleAliasRegistry implements AliasRegistry {
 								registeredName + "' with new target name '" + name + "'");
 					}
 				}
-				checkForAliasCircle(name, alias);
-				this.aliasMap.put(alias, name);
+				checkForAliasCircle(name, alias);	// 校验，是否存在循环指向
+				this.aliasMap.put(alias, name);		// 走到这里说明允许覆盖并且一切正常，那么直接将映射关系加入即可
 				if (logger.isDebugEnabled()) {
 					logger.debug("Alias definition '" + alias + "' registered for name '" + name + "'");
 				}
@@ -99,10 +100,12 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	 */
 	public boolean hasAlias(String name, String alias) {
 		for (Map.Entry<String, String> entry : this.aliasMap.entrySet()) {
-			String registeredName = entry.getValue();
-			if (registeredName.equals(name)) {
-				String registeredAlias = entry.getKey();
+			String registeredName = entry.getValue();		// 获取到beanName
+			if (registeredName.equals(name)) {				// 如果beanName和传入的name相等
+				String registeredAlias = entry.getKey();	// 拿到该beanName对应的alias
 				if (registeredAlias.equals(alias) || hasAlias(registeredAlias, alias)) {
+					// 如果alias和传入的alias相等则返回true，否则进行递归调用判断是否出现循环指向
+					// todo: 没理解
 					return true;
 				}
 			}
@@ -207,6 +210,8 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
+	 * 循环获取 beanName 的过程，例如，别名A指向名称为B的bean则返回B，若别名A指向别名B，别名B指向名称为C的bean，则返回C
+	 * todo：别名机制还未理解
 	 * Determine the raw name, resolving aliases to canonical names.
 	 * @param name the user-specified name
 	 * @return the transformed name
@@ -215,13 +220,12 @@ public class SimpleAliasRegistry implements AliasRegistry {
 		String canonicalName = name;
 		// Handle aliasing...
 		String resolvedName;
-		do {
+		do {	// 循环，从 aliasMap 中，获取到最终的 beanName
 			resolvedName = this.aliasMap.get(canonicalName);
 			if (resolvedName != null) {
 				canonicalName = resolvedName;
 			}
-		}
-		while (resolvedName != null);
+		} while (resolvedName != null);
 		return canonicalName;
 	}
 

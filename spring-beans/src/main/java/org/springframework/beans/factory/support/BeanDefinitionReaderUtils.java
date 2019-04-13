@@ -146,10 +146,12 @@ public class BeanDefinitionReaderUtils {
 			BeanDefinitionHolder definitionHolder, BeanDefinitionRegistry registry)
 			throws BeanDefinitionStoreException {
 
+		// 注册 beanName
 		// Register bean definition under primary name.
 		String beanName = definitionHolder.getBeanName();
 		registry.registerBeanDefinition(beanName, definitionHolder.getBeanDefinition());
 
+		// 注册 alias，建立 alias 和 beanName 之间的映射
 		// Register aliases for bean name, if any.
 		String[] aliases = definitionHolder.getAliases();
 		if (aliases != null) {
@@ -157,6 +159,8 @@ public class BeanDefinitionReaderUtils {
 				registry.registerAlias(beanName, alias);
 			}
 		}
+
+		// 到这里beanName已经成功注册，并且alias与beanName之间的映射关系也建立完毕，下一步则是等待初始化使用了
 	}
 
 	/**

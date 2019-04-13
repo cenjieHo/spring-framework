@@ -783,9 +783,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition)
 			throws BeanDefinitionStoreException {
 
+		// 校验 beanName 与 beanDefinition 非空
 		Assert.hasText(beanName, "Bean name must not be empty");
 		Assert.notNull(beanDefinition, "BeanDefinition must not be null");
 
+		// <1> 校验 BeanDefinition 。
+		// 这是注册前的最后一次校验了，主要是对属性 methodOverrides 进行校验。
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
 				((AbstractBeanDefinition) beanDefinition).validate();
@@ -796,54 +799,55 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 		}
 
+		// <2> 从缓存中获取指定 beanName 的 BeanDefinition
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
+		// <3> 如果已经存在
 		if (existingDefinition != null) {
-			if (!isAllowBeanDefinitionOverriding()) {
+			if (!isAllowBeanDefinitionOverriding()) {								// 如果已经存在但是不允许覆盖，抛出异常
 				throw new BeanDefinitionStoreException(beanDefinition.getResourceDescription(), beanName,
 						"Cannot register bean definition [" + beanDefinition + "] for bean '" + beanName +
 						"': There is already [" + existingDefinition + "] bound.");
-			}
-			else if (existingDefinition.getRole() < beanDefinition.getRole()) {
+			} else if (existingDefinition.getRole() < beanDefinition.getRole()) {	// 如果覆盖 beanDefinition 大于 被覆盖的 beanDefinition 的 ROLE ，打印 info 日志
 				// e.g. was ROLE_APPLICATION, now overriding with ROLE_SUPPORT or ROLE_INFRASTRUCTURE
 				if (logger.isWarnEnabled()) {
 					logger.warn("Overriding user-defined bean definition for bean '" + beanName +
 							"' with a framework-generated bean definition: replacing [" +
 							existingDefinition + "] with [" + beanDefinition + "]");
 				}
-			}
-			else if (!beanDefinition.equals(existingDefinition)) {
+			} else if (!beanDefinition.equals(existingDefinition)) {				// 覆盖 beanDefinition 与 被覆盖的 beanDefinition 不相同，打印 debug 日志
 				if (logger.isInfoEnabled()) {
 					logger.info("Overriding bean definition for bean '" + beanName +
 							"' with a different definition: replacing [" + existingDefinition +
 							"] with [" + beanDefinition + "]");
 				}
-			}
-			else {
+			} else {																// 其它，打印 debug 日志
 				if (logger.isDebugEnabled()) {
 					logger.debug("Overriding bean definition for bean '" + beanName +
 							"' with an equivalent definition: replacing [" + existingDefinition +
 							"] with [" + beanDefinition + "]");
 				}
 			}
-			this.beanDefinitionMap.put(beanName, beanDefinition);
-		}
-		else {
-			if (hasBeanCreationStarted()) {
+			this.beanDefinitionMap.put(beanName, beanDefinition);					// 此时允许覆盖，直接覆盖原有的 BeanDefinition 到 beanDefinitionMap 中。
+		} else {		// <4> 如果指定 beanName 的 BeanDefinition 未存在
+			if (hasBeanCreationStarted()) {			// 检测创建 Bean 阶段是否已经开启，如果开启了则需要对 beanDefinitionMap 进行并发控制
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				// 以下采用写实复制的思想，加锁后保证同时只有一个线程能完成数组的拷贝，然后写操作都在新数组上进行，当写操作完成时再将引用指向新数组。
+				// 此时，别的线程是可以对其进行读操作的（如果不这么做，当一个线程在读取而另一个线程写入时会抛出 ConcurrentModificationException 异常）
 				synchronized (this.beanDefinitionMap) {
-					this.beanDefinitionMap.put(beanName, beanDefinition);
+					this.beanDefinitionMap.put(beanName, beanDefinition);	// 核心：添加到 BeanDefinition 到 beanDefinitionMap 中。key为beanName，value为beanDefinition
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
 					updatedDefinitions.addAll(this.beanDefinitionNames);
 					updatedDefinitions.add(beanName);
 					this.beanDefinitionNames = updatedDefinitions;
 					if (this.manualSingletonNames.contains(beanName)) {
+						// 如果单例模式的bean名单中有该bean的name，那么移除掉它。
+						// 也就是说着，将一个原本是单例模式的bean重新注册成一个普通的bean
 						Set<String> updatedSingletons = new LinkedHashSet<>(this.manualSingletonNames);
 						updatedSingletons.remove(beanName);
 						this.manualSingletonNames = updatedSingletons;
 					}
 				}
-			}
-			else {
+			} else {
 				// Still in startup registration phase
 				this.beanDefinitionMap.put(beanName, beanDefinition);
 				this.beanDefinitionNames.add(beanName);
@@ -851,9 +855,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			this.frozenBeanDefinitionNames = null;
 		}
-
-		if (existingDefinition != null || containsSingleton(beanName)) {
-			resetBeanDefinition(beanName);
+		// todo：why？？？
+		if (existingDefinition != null || containsSingleton(beanName)) {	// 若缓存中存在该 beanName 或者单例 bean 集合中存在该 beanName
+			resetBeanDefinition(beanName);	// <5> 重新设置 beanName 对应的缓存
 		}
 	}
 

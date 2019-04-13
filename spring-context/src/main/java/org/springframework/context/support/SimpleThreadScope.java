@@ -66,11 +66,11 @@ public class SimpleThreadScope implements Scope {
 
 	@Override
 	public Object get(String name, ObjectFactory<?> objectFactory) {
-		Map<String, Object> scope = this.threadScope.get();
-		Object scopedObject = scope.get(name);
-		if (scopedObject == null) {
-			scopedObject = objectFactory.getObject();
-			scope.put(name, scopedObject);
+		Map<String, Object> scope = this.threadScope.get();	// 获取缓存
+		Object scopedObject = scope.get(name);				// 缓存中获取bean
+		if (scopedObject == null) {							// 如果缓存中不存在
+			scopedObject = objectFactory.getObject();		// 创建bean
+			scope.put(name, scopedObject);					// 加入缓存
 		}
 		return scopedObject;
 	}
