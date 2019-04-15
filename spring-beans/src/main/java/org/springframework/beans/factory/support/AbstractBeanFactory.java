@@ -259,9 +259,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 			// <2> 完成 FactoryBean 的相关处理（实例化处理），并用来获取 FactoryBean 的处理结果
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
-		}
-
-		else {
+		} else {
 			// <3> 因为 Spring 只解决单例模式下的循环依赖，在原型模式下如果存在循环依赖则会抛出异常
 			// 对于单例模式：Spring 在创建 Bean 的时候并不是等Bean完全创建完成后才会将 Bean 添加至缓存中，
 			// 而是不等 Bean 创建完成就会将创建 Bean 的 ObjectFactory 提早加入到缓存中，这样一旦下一个Bean创建的时候需要依赖bean时则直接使用 ObjectFactory。
@@ -334,7 +332,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// Spring Bean 的作用域默认为singleton，不同的作用域有不同的初始化策略。
 				// Create bean instance.
 				if (mbd.isSingleton()) {	// 单例模式
-					// 以下 getSingleton() 方法从头开始加载 Bean
+					// 以下 getSingleton() 方法从头开始加载 Bean，上面的相当于从缓存中获取，这里的如果缓存中没有则创建一个
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							return createBean(beanName, mbd, args);		// 核心：createBean()方法，所有Bean实例的创建，都会委托给该方法实现

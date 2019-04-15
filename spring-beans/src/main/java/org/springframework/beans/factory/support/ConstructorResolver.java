@@ -123,8 +123,7 @@ class ConstructorResolver {
 		// 如果 getBean() 已经传递，则直接使用
 		if (explicitArgs != null) {
 			argsToUse = explicitArgs;
-		}
-		else {
+		} else {
 			// 尝试从缓存中获取
 			Object[] argsToResolve = null;
 			synchronized (mbd.constructorArgumentLock) {
@@ -143,7 +142,7 @@ class ConstructorResolver {
 			// 如给定方法的构造函数 A(int, int)，则通过此方法后就会把配置文件中的("1", "1")转换为(1, 1)
 			// 缓存中的值可能是原始值也有可能是最终值
 			if (argsToResolve != null) {
-				argsToUse = resolvePreparedArguments(beanName, mbd, bw, constructorToUse, argsToResolve);	//TODO：需要进一步研究
+				argsToUse = resolvePreparedArguments(beanName, mbd, bw, constructorToUse, argsToResolve);	// TODO：需要进一步研究
 			}
 		}
 
@@ -155,17 +154,16 @@ class ConstructorResolver {
 					mbd.getResolvedAutowireMode() == AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR);	// 或者使用构造函数的自动装配模式
 			// 用于承载解析后的构造函数参数的值
 			ConstructorArgumentValues resolvedValues = null;
-
-			int minNrOfArgs;
-			if (explicitArgs != null) {
+			int minNrOfArgs;	// 参数个数
+			if (explicitArgs != null) {		// 如果有传入参数
 				minNrOfArgs = explicitArgs.length;
-			} else {
+			} else {						// 如果没传入参数
 				// 从 BeanDefinition 中获取构造参数，也就是从配置文件中提取构造参数
 				ConstructorArgumentValues cargs = mbd.getConstructorArgumentValues();
 				resolvedValues = new ConstructorArgumentValues();
 				// 解析构造函数的参数
 				// 将该 bean 的构造函数参数解析为 resolvedValues 对象，其中会涉及到其它 bean
-				minNrOfArgs = resolveConstructorArguments(beanName, mbd, bw, cargs, resolvedValues);
+				minNrOfArgs = resolveConstructorArguments(beanName, mbd, bw, cargs, resolvedValues);	// TODO：需要进一步研究
 			}
 
 			// Take specified constructors, if any.
@@ -185,20 +183,28 @@ class ConstructorResolver {
 				}
 			}
 
+			// 对构造函数进行排序处理
+			// public 优先，按照参数数量降序，其次是非 public 构造函数，也是按照参数数量降序
 			AutowireUtils.sortConstructors(candidates);
 
+			// 最小参数类型权重
 			int minTypeDiffWeight = Integer.MAX_VALUE;
 			Set<Constructor<?>> ambiguousConstructors = null;
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
+			// 迭代所有构造函数
 			for (Constructor<?> candidate : candidates) {
+				// 获取构造函数的参数类型
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 
+				// 如果已经找到选用的构造函数或者需要的参数个数小于当前的构造函数参数个数，则终止
+				// 因为已经按照参数个数排序了，之后的构造函数的参数个数只会更小，没必要继续了
 				if (constructorToUse != null && argsToUse.length > paramTypes.length) {
 					// Already found greedy constructor that can be satisfied ->
 					// do not look any further, there are only less greedy constructors left.
 					break;
 				}
+				// 如果参数个数不等，继续
 				if (paramTypes.length < minNrOfArgs) {
 					continue;
 				}

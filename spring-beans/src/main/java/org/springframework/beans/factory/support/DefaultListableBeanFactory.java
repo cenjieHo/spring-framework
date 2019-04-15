@@ -1042,40 +1042,65 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-
+		// 初始化参数名称发现器，该方法并不会在这个时候尝试检索参数名称
 		descriptor.initParameterNameDiscovery(getParameterNameDiscoverer());
-		if (Optional.class == descriptor.getDependencyType()) {
+
+		if (Optional.class == descriptor.getDependencyType()) {		// 依赖类型为 Optional
 			return createOptionalDependency(descriptor, requestingBeanName);
-		}
-		else if (ObjectFactory.class == descriptor.getDependencyType() ||
-				ObjectProvider.class == descriptor.getDependencyType()) {
+		} else if (ObjectFactory.class == descriptor.getDependencyType() ||
+				ObjectProvider.class == descriptor.getDependencyType()) {	// 依赖类型为 ObjectFactory、ObjectProvider
 			return new DependencyObjectProvider(descriptor, requestingBeanName);
-		}
-		else if (javaxInjectProviderClass == descriptor.getDependencyType()) {
+		} else if (javaxInjectProviderClass == descriptor.getDependencyType()) {	// javaxInjectProviderClass 类注入的特殊处理
 			return new Jsr330ProviderFactory().createDependencyProvider(descriptor, requestingBeanName);
-		}
-		else {
+		} else {
+			// 默认实现返回 null
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
+				// 通用处理逻辑，解析依赖
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
 			return result;
 		}
 	}
 
+	/**
+	 * 该方法流程：
+	 * 1. 先用一个快捷方式从容器中获取 Bean，如果获取成功就提前结束解析（最终调用 beanFactory.getBean(String, Class)）
+	 * 2. 处理 @Value 注解
+	 * 3. 解析数组、List、Map 等类型的依赖，如果解析结果不为空，则返回结果
+	 * 4. 根据类型查找合适的候选项
+	 * 5. 如果没有合适的候选项，则抛出异常；
+	 *    如果候选项个数 = 1，则直接取出；
+	 * 	  如果候选项个数 > 1 ，则根据 primary、priority 确定唯一的候选项，若无法确定则抛出异常
+	 * 6. 若候选项是 Class 类型，表明该候选项还没实例化，此时通过 BeanFactory#getBean() 方法对其进行实例化。
+	 * @param descriptor
+	 * @param beanName
+	 * @param autowiredBeanNames
+	 * @param typeConverter
+	 * @return
+	 * @throws BeansException
+	 */
 	@Nullable
 	public Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-
+		// 注入点
 		InjectionPoint previousInjectionPoint = ConstructorResolver.setCurrentInjectionPoint(descriptor);
 		try {
+			// 针对给定的工厂给定一个快捷实现的方式，例如考虑一些预先解析的信息
+			// 在进入所有bean的常规类型匹配算法之前，解析算法将首先尝试通过此方法解析快捷方式
+			// 子类可以覆盖此方法
+			// 该方法最终调用了 beanFactory.getBean(String, Class)，从容器中获取依赖
 			Object shortcut = descriptor.resolveShortcut(this);
 			if (shortcut != null) {
+				// 返回快捷的解析信息，提前结束依赖解析逻辑
 				return shortcut;
 			}
 
+			// 依赖的类型
 			Class<?> type = descriptor.getDependencyType();
+
+			// 处理 @value 注解
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
 			if (value != null) {
 				if (value instanceof String) {
@@ -1089,13 +1114,33 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						converter.convertIfNecessary(value, type, descriptor.getMethodParameter()));
 			}
 
+			// 解析数组、list、map等类型的依赖
 			Object multipleBeans = resolveMultipleBeans(descriptor, beanName, autowiredBeanNames, typeConverter);
 			if (multipleBeans != null) {
 				return multipleBeans;
 			}
 
+			/**
+			 * 按类型查找候选列表，如果某个类型已经被实例化，则返回相应的实例，比如下面的配置：
+			 * 		<bean name="service" class="Service" autowire="byType" />
+			 * 		<bean name="mongoDao" class="MongoDao" primary="true" />
+			 * 	 	<bean name="mysqlDao" class="MySqlDao" />
+			 *  MongoDao 和 MySqlDao 均实现自 Dao 接口。Service 对象（不是接口）中有一个 Dao 类型的属性，
+			 *  现在根据类型自动注入 Dao 的实现类，这里有两个候选 bean，一个是 mongoDao，另一个是 mysqlDao，
+			 *  此时 findAutowireCandidates 方法会返回如下的结果：
+			 *  matchingBeans = [ <mongoDao, Object@MongoDao>, <mysqlDao, Class@MySqlDao> ]
+			 *  注意由于此时 mysqlDao 还未实例化，所以返回的是 MySqlDao.class
+			 *
+			 *  findAutowireCandidates 方法流程：
+			 *  1. 从 BeanFactory 中获取某种类型 bean 的名称，比如上面的配置中 mongoDao 和 mysqlDao 均实现了 Dao 接口，
+			 *     所以他们是同一种类型的 bean
+			 *  2. 遍历上一步得到的名称列表，并判断 bean 名称对应的 bean 是否是合适的候选项，若合适则添加到候选列表中，
+			 *     并在最后返回候选列表
+			 */
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
+			// 没有找到匹配的 bean，检验 @autowire 的 require 是否为 true
 			if (matchingBeans.isEmpty()) {
+				// 如果 @autowire 的 require 为 true，但是没有找到相应的匹配项，则抛出异常
 				if (isRequired(descriptor)) {
 					raiseNoMatchingBeanFound(type, descriptor.getResolvableType(), descriptor);
 				}
@@ -1105,22 +1150,32 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			String autowiredBeanName;
 			Object instanceCandidate;
 
+			// 当候选者不唯一时
 			if (matchingBeans.size() > 1) {
+				/**
+				 * 有多个匹配的 bean（候选项有多个），此处判断使用哪一个候选项。比如以下配置
+				 * 		<bean name="mongoDao" class="MongoDao" primary="true" />
+				 * 		<bean name="mysqlDao" class="MySqlDao" />
+				 *
+				 * 	mongoDao 的配置中存在 primary 属性，所以 mongoDao 会被选为最终的候选项。
+				 * 	如果两个 bean 配置都没有 primary 属性，则需要根据优先级 Priority 选择候选项。
+				 */
 				autowiredBeanName = determineAutowireCandidate(matchingBeans, descriptor);
 				if (autowiredBeanName == null) {
+					// 以下最终都是会返回 null
 					if (isRequired(descriptor) || !indicatesMultipleBeans(type)) {
 						return descriptor.resolveNotUnique(type, matchingBeans);
-					}
-					else {
+					} else {
 						// In case of an optional Collection/Map, silently ignore a non-unique case:
 						// possibly it was meant to be an empty collection of multiple regular beans
 						// (before 4.3 in particular when we didn't even look for collection beans).
+						// 在可选的 Collection / Map 的情况下，默默地忽略一个非唯一的情况：可能它是一个多个常规bean的空集合
 						return null;
 					}
 				}
+				// 根据解析出的 autowiredBeanName，获取相应的候选项
 				instanceCandidate = matchingBeans.get(autowiredBeanName);
-			}
-			else {
+			} else {	// 候选者唯一时，直接取出即可
 				// We have exactly one match.
 				Map.Entry<String, Object> entry = matchingBeans.entrySet().iterator().next();
 				autowiredBeanName = entry.getKey();
@@ -1130,6 +1185,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			if (autowiredBeanNames != null) {
 				autowiredBeanNames.add(autowiredBeanName);
 			}
+
+			// 如果实例是 Class 类型的，则调用 beanFactory.getBean(String) 获取相应的 bean
 			if (instanceCandidate instanceof Class) {
 				instanceCandidate = descriptor.resolveCandidate(autowiredBeanName, type, this);
 			}
@@ -1254,6 +1311,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	/**
+	 * 流程：
+	 * 1. 从 BeanFactory 中获取某种类型 bean 的名称，比如上面的配置中 mongoDao 和 mysqlDao 均实现了 Dao 接口，
+	 * 	  所以他们是同一种类型的 bean。
+	 * 2. 遍历上一步得到的名称列表，并判断 bean 名称对应的 bean 是否是合适的候选项，若合适则添加到候选列表中，
+	 *    并在最后返回候选列表。
+	 *
 	 * Find bean instances that match the required type.
 	 * Called during autowiring for the specified bean.
 	 * @param beanName the name of the bean that is about to be wired

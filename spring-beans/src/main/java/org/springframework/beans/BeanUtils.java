@@ -151,6 +151,8 @@ public abstract class BeanUtils {
 	}
 
 	/**
+	 * 使用给定的构造函数实例化一个类。（注意，就算构造函数是私有的也可以使用）
+	 *
 	 * Convenience method to instantiate a class using the given constructor.
 	 * <p>Note that this method tries to set the constructor accessible if given a
 	 * non-accessible (that is, non-public) constructor, and supports Kotlin classes
@@ -165,9 +167,9 @@ public abstract class BeanUtils {
 	public static <T> T instantiateClass(Constructor<T> ctor, Object... args) throws BeanInstantiationException {
 		Assert.notNull(ctor, "Constructor must not be null");
 		try {
-			ReflectionUtils.makeAccessible(ctor);
+			ReflectionUtils.makeAccessible(ctor);	// 设置该构造函数为可访问
 			return (KotlinDetector.isKotlinType(ctor.getDeclaringClass()) ?
-					KotlinDelegate.instantiateClass(ctor, args) : ctor.newInstance(args));
+					KotlinDelegate.instantiateClass(ctor, args) : ctor.newInstance(args));	// 使用该构造函数创建对象
 		}
 		catch (InstantiationException ex) {
 			throw new BeanInstantiationException(ctor, "Is it an abstract class?", ex);

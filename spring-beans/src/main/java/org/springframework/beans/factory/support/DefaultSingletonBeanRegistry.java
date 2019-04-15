@@ -82,7 +82,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	/**
 	 * 存放的也是 beanName 到 bean 实例的映射关系，它与 {@link #singletonObjects} 的区别在于它存放的 bean 不一定完整。
 	 * 从 {@link #getSingleton(String)} 方法中，我们可以了解到 bean 在创建过程就已经加入到 earlySingletonObjects 中了，
-	 * 所以在 bean 的创建过程中，就可以通过 getBean() 方法获取。
+	 * 所以在 bean 的创建过程中，就可以通过 getBean() 方法获取。它也是解决循环依赖的关键所在。
 	 */
 	private final Map<String, Object> earlySingletonObjects = new HashMap<>(16);
 
@@ -176,6 +176,14 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * 此方法流程：
+	 * 1. 首先，从一级缓存 singletonObjects 获取
+	 * 2. 如果一级缓存中没有且当前指定的 beanName 正在创建，就再从二级缓存 earlySingletonObjects 中获取
+	 * 3. 如果二级缓存中没有且允许 singletonFactories 通过 getObject() 方法获取，则从三级缓存 singletonFactories 获取该 beanName 的 ObjectFactory，
+	 * 	  如果获取到则通过其 getObject() 方法获取对象，并将其加入到二级缓存 earlySingletonObjects 中，并从三级缓存 singleFactories 删除。
+	 * 	  这样，就从三级缓存升级到二级缓存了。所以，二级缓存存在的意义就是缓存三级缓存中的 ObjectFactory 的 getObject() 方法的执行结果，
+	 * 	  提早曝光的单例 Bean 对象。
+	 *
 	 * Return the (raw) singleton object registered under the given name.
 	 * <p>Checks already instantiated singletons and also allows for an early
 	 * reference to a currently created singleton (resolving a circular reference).
@@ -194,7 +202,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 				// 从 earlySingletonObjects 中获取
 				singletonObject = this.earlySingletonObjects.get(beanName);
 				// 如果 earlySingletonObjects 中没有，并且允许提前创建
-				if (singletonObject == null && allowEarlyReference) {
+				if (singletonObject == null && allowEarlyReference) {	// allowEarlyReference：是否允许从 singletonFactories 缓存中通过 getObject() 方法拿到对象
 					// 从 singletonFactories 中获取对应的 ObjectFactory
 					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 					if (singletonFactory != null) {
@@ -272,7 +280,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					// <4> 后置处理，其实就是移除正在创建中的标记
 					afterSingletonCreation(beanName);
 				}
-				// <5> 加入缓存中
+				// <5> 加入缓存中（正是在此处加入到一级缓存的）
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}
@@ -349,6 +357,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * 判断当前 singleton bean 是否处于创建中
 	 * Return whether the specified singleton bean is currently in creation
 	 * (within the entire factory).
 	 * @param beanName the name of the bean
