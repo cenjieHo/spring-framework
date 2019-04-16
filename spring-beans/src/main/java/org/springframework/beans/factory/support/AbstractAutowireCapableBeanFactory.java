@@ -552,9 +552,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		BeanWrapper instanceWrapper = null;
 		// <1> 如果为单例模式，则从未完成的 FactoryBean 缓存中删除
 		if (mbd.isSingleton()) {
-			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);	// TODO: why？？？
+			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		// <2> 使用合适的实例化策略来创建新的实例：工厂方法、构造函数自动注入、简单初始化
+		// 判断如果为 true 的话要么说明该 bean 不是单例的，要么就是缓存中不存在
 		if (instanceWrapper == null) {
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
@@ -588,8 +589,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
 		// <4> 解决单例模式的循环依赖
 		boolean earlySingletonExposure = (mbd.isSingleton() 	// 如果为单例模式
-				&& this.allowCircularReferences 				// 运行循环依赖
-				&& isSingletonCurrentlyInCreation(beanName));	// 当前单例 Bean 是否正在被创建
+				&& this.allowCircularReferences 				// 允许循环依赖
+				&& isSingletonCurrentlyInCreation(beanName));	// 当前单例 Bean 正在被创建
 		if (earlySingletonExposure) {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Eagerly caching bean '" + beanName +
@@ -623,6 +624,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// <7> 循环依赖处理
+		// TODO：暂时还未研究这块
 		if (earlySingletonExposure) {
 			// 获取 earlySingletonReference
 			Object earlySingletonReference = getSingleton(beanName, false);
@@ -653,6 +655,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// <8> 注册 bean
+		// TODO：暂时还未研究这块
 		// Register bean as disposable.
 		try {
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);

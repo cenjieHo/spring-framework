@@ -280,7 +280,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					// <4> 后置处理，其实就是移除正在创建中的标记
 					afterSingletonCreation(beanName);
 				}
-				// <5> 加入缓存中（正是在此处加入到一级缓存的）
+				// <5> 此时已经正式创建完成，加入缓存中（正是在此处加入到一级缓存的）
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}

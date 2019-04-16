@@ -226,6 +226,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	/**
+	 * 该方法流程：
+	 * 1. 将 alias name、FactoryBean name 转换为对应的 beanName
+	 * 2. 尝试从缓存中获取单例 bean
+	 * 3. 如果缓存中不存在，则从父类容器中加载
+	 * 4. 合并父类的属性，获取 RootBeanDefinition
+	 * 5. 加载所依赖的 bean
+	 * 6. 根据不同的 scope 实例化 bean
+	 * 7. 类型转换处理，如果传递的 requiredType 不为 null，则需要检测所得到的 bean 的类型是否与该 requiredType 一致。
+	 *
 	 * Return an instance, which may be shared or independent, of the specified bean.
 	 * @param name the name of the bean to retrieve		要获取 Bean 的名字
 	 * @param requiredType the required type of the bean to retrieve	要获取 Bean 的类型
@@ -244,7 +253,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		final String beanName = transformedBeanName(name);
 		Object bean;
 
-		// 从缓存中或者实例工厂中获取 Bean 对象
+		// <2> 从缓存中或者实例工厂中获取 Bean 对象
 		// Eagerly check singleton cache for manually registered singletons.
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
@@ -257,16 +266,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.debug("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
-			// <2> 完成 FactoryBean 的相关处理（实例化处理），并用来获取 FactoryBean 的处理结果
+			// 完成 FactoryBean 的相关处理（实例化处理），并用来获取 FactoryBean 的处理结果
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		} else {
 			// <3> 因为 Spring 只解决单例模式下的循环依赖，在原型模式下如果存在循环依赖则会抛出异常
 			// 对于单例模式：Spring 在创建 Bean 的时候并不是等Bean完全创建完成后才会将 Bean 添加至缓存中，
-			// 而是不等 Bean 创建完成就会将创建 Bean 的 ObjectFactory 提早加入到缓存中，这样一旦下一个Bean创建的时候需要依赖bean时则直接使用 ObjectFactory。
+			// 而是不等 Bean 创建完成就会将创建 Bean 的 ObjectFactory 提早加入到缓存中，这样一旦下一个Bean创建的时候需要依赖 bean时则直接使用 ObjectFactory。
 			// 对于原型模式：因为没法利用缓存，所以 Spring 对原型模式的循环依赖处理策略是不处理。
-
-			// Fail if we're already creating this bean instance:
-			// We're assumably within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {		// 当前正在创建的原型bean中包含该beanName，那么直接抛出异常
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
@@ -364,7 +370,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					}
 					// 加载了bean，从 bean 实例中获取对象，该对象要么是 Bean 实例本身，要么就是 FactoryBean 创建的 Bean 对象
 					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
-				} else {	// 其它作用域
+				} else {	// 其它作用域：request、session、global session
 					String scopeName = mbd.getScope();
 					final Scope scope = this.scopes.get(scopeName);		//根据 scopeName 获得对应的 Scope 对象
 					if (scope == null) {	// 不存在该Scope对象，抛出异常
@@ -393,8 +399,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 								ex);
 					}
 				}
-			}
-			catch (BeansException ex) {
+			} catch (BeansException ex) {
 				cleanupAfterBeanCreationFailure(beanName);
 				throw ex;
 			}
@@ -1658,7 +1663,6 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected Object getObjectForBeanInstance(
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 		// <1> 若为工厂类引用（name 以 & 开头）
-		// Don't let calling code try to dereference the factory if the bean isn't a factory.
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			// 如果是 NullBean 类型，则直接返回
 			if (beanInstance instanceof NullBean) {
@@ -1671,16 +1675,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// <2> 到这里就有了一个 Bean 实例，不过该实例可能是一个正常的 bean，也有可能是一个 FactoryBean
-		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
-		// If it's a FactoryBean, we use it to create a bean instance, unless the
-		// caller actually wants a reference to the factory.
 		if (!(beanInstance instanceof FactoryBean) || BeanFactoryUtils.isFactoryDereference(name)) {
 			// 如果该 bean 实例不是 FactoryBean 类型的，那么直接返回即可
-			// 或者调用方确实想要该 factoryBean，name 以 & 开头，那么也可以直接返回
+			// 或者调用方确实想要该 factoryBean，也就是 name 是以 & 开头的，那么也可以直接返回
 			return beanInstance;
 		}
 
-		// 到这里，可以断定 beanInstance 为 FactoryBean，并且 name 不以 & 开头，说明调用方是想要该 FactoryBean 创建的 Bean 而非 FactoryBean 本身
+		// 到这里，可以断定 beanInstance 为 FactoryBean 类型的，并且 name 不以 & 开头，
+		// 说明调用方是想要该 FactoryBean 创建的 Bean 而非 FactoryBean 本身
 
 		Object object = null;
 		// <3> 若 BeanDefinition 为 null，则从缓存中加载 Bean 对象（缓存是FactoryBean name 到 bean 实例的映射）

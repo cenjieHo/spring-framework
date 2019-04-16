@@ -211,7 +211,6 @@ public class SimpleAliasRegistry implements AliasRegistry {
 
 	/**
 	 * 循环获取 beanName 的过程，例如，别名A指向名称为B的bean则返回B，若别名A指向别名B，别名B指向名称为C的bean，则返回C
-	 * todo：别名机制还未理解
 	 * Determine the raw name, resolving aliases to canonical names.
 	 * @param name the user-specified name
 	 * @return the transformed name
