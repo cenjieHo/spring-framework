@@ -46,6 +46,9 @@ import org.springframework.beans.BeansException;
 public interface BeanFactoryPostProcessor {
 
 	/**
+	 * 作用于容器启动阶段，此时 BeanDefinition 已经加载完成，
+	 * 在容器实例化 Bean 之前最后一次修改 BeanDefinition 的机会
+	 *
 	 * Modify the application context's internal bean factory after its standard
 	 * initialization. All bean definitions will have been loaded, but no beans
 	 * will have been instantiated yet. This allows for overriding or adding

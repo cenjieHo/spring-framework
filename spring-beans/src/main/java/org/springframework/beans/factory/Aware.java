@@ -17,6 +17,11 @@
 package org.springframework.beans.factory;
 
 /**
+ * Aware 接口是一个具有标识作用的空接口，实现了该接口的 bean 是具有被 Spring 容器通知的能力，
+ * 通知的方式是采用回调的方式。该接口的实现通常只会有一个接受单参数的 set 方法，该 set 方法的
+ * 命名方式为 set + 去掉接口名中的 Aware 后缀，比如 BeanNameAware（setBeanName），
+ * ApplicationContextAware（setApplicationContext）
+ *
  * A marker superinterface indicating that a bean is eligible to be notified by the
  * Spring container of a particular framework object through a callback-style method.
  * The actual method signature is determined by individual subinterfaces but should

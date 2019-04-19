@@ -107,7 +107,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	@Override
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
 			final Constructor<?> ctor, @Nullable Object... args) {
-
+		// 没有覆盖方法，直接使用反射实例化即可
 		if (!bd.hasMethodOverrides()) {
 			if (System.getSecurityManager() != null) {
 				// use own privileged to change accessibility (when security is on)
@@ -116,9 +116,11 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					return null;
 				});
 			}
+			// 通过 BeanUtils 直接使用构造器对象实例化 Bean 对象
+			// 核心代码其实就是 constructorToUse.newInstance();
 			return (args != null ? BeanUtils.instantiateClass(ctor, args) : BeanUtils.instantiateClass(ctor));
-		}
-		else {
+		} else {
+			// 生成 CGLIB 创建的子类对象
 			return instantiateWithMethodInjection(bd, beanName, owner, ctor, args);
 		}
 	}
@@ -131,7 +133,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	 */
 	protected Object instantiateWithMethodInjection(RootBeanDefinition bd, @Nullable String beanName,
 			BeanFactory owner, @Nullable Constructor<?> ctor, @Nullable Object... args) {
-
+		// 将CGLIB的实例化策略委托其实现
 		throw new UnsupportedOperationException("Method Injection not supported in SimpleInstantiationStrategy");
 	}
 
@@ -145,39 +147,37 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					ReflectionUtils.makeAccessible(factoryMethod);
 					return null;
 				});
-			}
-			else {
-				ReflectionUtils.makeAccessible(factoryMethod);
+			} else {
+				ReflectionUtils.makeAccessible(factoryMethod);	// 设置method可访问
 			}
 
+			// 获得原 Method 对象
+			// currentlyInvokedFactoryMethod 用于判断当前线程是否正在创建某个 bean
 			Method priorInvokedFactoryMethod = currentlyInvokedFactoryMethod.get();
 			try {
-				currentlyInvokedFactoryMethod.set(factoryMethod);
-				Object result = factoryMethod.invoke(factoryBean, args);
-				if (result == null) {
+				currentlyInvokedFactoryMethod.set(factoryMethod);			// 设置新的 Method 对象到 currentlyInvokedFactoryMethod 中
+				Object result = factoryMethod.invoke(factoryBean, args);	// 创建 Bean 对象
+				if (result == null) {	// 创建失败，则创建 NullBean 对象
 					result = new NullBean();
 				}
 				return result;
-			}
-			finally {
+			} finally {
+				// 恢复现场
 				if (priorInvokedFactoryMethod != null) {
 					currentlyInvokedFactoryMethod.set(priorInvokedFactoryMethod);
-				}
-				else {
+				} else {
 					currentlyInvokedFactoryMethod.remove();
 				}
 			}
-		}
-		catch (IllegalArgumentException ex) {
+			// 一大堆 catch 异常
+		} catch (IllegalArgumentException ex) {
 			throw new BeanInstantiationException(factoryMethod,
 					"Illegal arguments to factory method '" + factoryMethod.getName() + "'; " +
 					"args: " + StringUtils.arrayToCommaDelimitedString(args), ex);
-		}
-		catch (IllegalAccessException ex) {
+		} catch (IllegalAccessException ex) {
 			throw new BeanInstantiationException(factoryMethod,
 					"Cannot access factory method '" + factoryMethod.getName() + "'; is it public?", ex);
-		}
-		catch (InvocationTargetException ex) {
+		} catch (InvocationTargetException ex) {
 			String msg = "Factory method '" + factoryMethod.getName() + "' threw exception";
 			if (bd.getFactoryBeanName() != null && owner instanceof ConfigurableBeanFactory &&
 					((ConfigurableBeanFactory) owner).isCurrentlyInCreation(bd.getFactoryBeanName())) {

@@ -654,9 +654,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
-		// <8> 注册 bean
-		// TODO：暂时还未研究这块
-		// Register bean as disposable.
+		// <8> 注册 bean 的销毁方法
+		// 与 InitializingBean 和 init-method 用于对象的自定义初始化工作相似，DisposableBean 和 destroy-method 用于对象的自定义销毁工作，
+		// 但是并不是对象完成调用后就会立刻执行销毁方法，而是等到Spring容器关闭的时候才去调用，并且需要我们主动去告知Spring容器，
+		// 对于 BeanFactory 容器需要调用 destroySingletons()方法，对于 ApplicationContext 容器需要调用 registerShutdownHook() 方法
 		try {
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
@@ -1121,6 +1122,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * 2. 工厂方法初始化
 	 * 3. 构造函数自动注入初始化
 	 * 4. 默认构造函数注入
+	 *
+	 * 不管是哪种策略，最终都一定会调用到 {@link InstantiationStrategy#instantiate(RootBeanDefinition, String, BeanFactory)} 方法
 	 *
 	 * Create a new instance for the specified bean, using an appropriate instantiation strategy:
 	 * factory method, constructor autowiring, or simple instantiation.
@@ -1848,11 +1851,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			@Nullable Object value, String propertyName, BeanWrapper bw, TypeConverter converter) {
 
 		if (converter instanceof BeanWrapperImpl) {
+			// 若 TypeConverter 为 BeanWrapperImpl 类型，则使用 BeanWrapperImpl 来进行类型转换
+			// 这里主要是因为 BeanWrapperImpl 实现了 PropertyEditorRegistry 接口
 			return ((BeanWrapperImpl) converter).convertForProperty(value, propertyName);
 		}
 		else {
+			// 获得属性对应的 PropertyDescriptor 对象
 			PropertyDescriptor pd = bw.getPropertyDescriptor(propertyName);
+			// 获得属性对应的 setting MethodParameter 对象
 			MethodParameter methodParam = BeanUtils.getWriteMethodParameter(pd);
+			// 执行转换
 			return converter.convertIfNecessary(value, pd.getPropertyType(), methodParam);
 		}
 	}
@@ -1919,18 +1927,24 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		return wrappedBean;
 	}
 
+	/**
+	 * Spring 在此处感知 Aware 并设置相应属性值
+	 * 这里设置了 beanName、beanClassLoader、BeanFactory 三个属性值
+	 * @param beanName
+	 * @param bean
+	 */
 	private void invokeAwareMethods(final String beanName, final Object bean) {
 		if (bean instanceof Aware) {
-			if (bean instanceof BeanNameAware) {		// BeanNameAware：声明 Spring Bean 的名字
+			if (bean instanceof BeanNameAware) {		// BeanNameAware：将该 bean 对象相应的 beanName 设置到当前对象实例中
 				((BeanNameAware) bean).setBeanName(beanName);
 			}
-			if (bean instanceof BeanClassLoaderAware) {	// BeanClassLoaderAware：加载 Spring Bean 的类加载器
+			if (bean instanceof BeanClassLoaderAware) {	// BeanClassLoaderAware：将该 bean 对象相应的 ClassLoader 设置到当前对象实例中
 				ClassLoader bcl = getBeanClassLoader();
 				if (bcl != null) {
 					((BeanClassLoaderAware) bean).setBeanClassLoader(bcl);
 				}
 			}
-			if (bean instanceof BeanFactoryAware) {		// BeanFactoryAware：声明 BeanFactory
+			if (bean instanceof BeanFactoryAware) {		// BeanFactoryAware：将自身设置到当前对象实例中，这样当前对象就会拥有一个 BeanFactory 容器的引用
 				((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
 			}
 		}
@@ -1938,8 +1952,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * 该方法流程：
-	 * 1. 如果 bean 实现了 InitializingBean 接口，那么会先调用该接口的 afterPropertiesSet 方法
-	 * 2. 调用用户自定义的初始化方法 init-method
+	 * 1. 如果 bean 实现了 InitializingBean 接口，那么会先调用该接口的 afterPropertiesSet 方法（需要实现接口，有侵入性）
+	 * 2. 检查是否指定了 init-method，如果指定了则通过反射机制调用 init-method 方法（无侵入性，但反射效率稍低）
 	 *
 	 * Give a bean a chance to react now all its properties are set,
 	 * and a chance to know about its owning bean factory (this object).
@@ -1955,8 +1969,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void invokeInitMethods(String beanName, final Object bean, @Nullable RootBeanDefinition mbd)
 			throws Throwable {
 
-		// 首先会检查是否是 InitializingBean，如果是的话需要调用 afterPropertiesSet()
-		// 因为我们除了可以使用 init-method 来指定初始化方法外，还可以实现 InitializingBean 接口，该接口仅有一个 afterPropertiesSet() 方法
+		// 首先会检查是否实现了 InitializingBean 接口，因为我们除了可以使用 init-method 来指定初始化方法外，
+		// 还可以实现 InitializingBean 接口，该接口仅有一个 afterPropertiesSet() 方法
 		boolean isInitializingBean = (bean instanceof InitializingBean);
 		if (isInitializingBean && (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
 			if (logger.isDebugEnabled()) {
@@ -1973,17 +1987,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					throw pae.getException();
 				}
 			} else {
-				// <1> 属性初始化的处理
+				// <1> 调用 InitializingBean 的 afterPropertiesSet 方法
 				((InitializingBean) bean).afterPropertiesSet();
 			}
 		}
 
 		if (mbd != null && bean.getClass() != NullBean.class) {
+			// 判断是否指定了 init-method
 			String initMethodName = mbd.getInitMethodName();
+			// 如果指定了 init-method，则调用指定的 init-method
 			if (StringUtils.hasLength(initMethodName) &&
 					!(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
 					!mbd.isExternallyManagedInitMethod(initMethodName)) {
 				// <2> 激活用户自定义的初始化方法
+				// 利用反射机制执行
 				invokeCustomInitMethod(beanName, bean, mbd);
 			}
 		}
@@ -2037,8 +2054,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				InvocationTargetException ex = (InvocationTargetException) pae.getException();
 				throw ex.getTargetException();
 			}
-		}
-		else {
+		} else {
 			try {
 				ReflectionUtils.makeAccessible(initMethod);
 				initMethod.invoke(bean);

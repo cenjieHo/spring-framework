@@ -79,6 +79,9 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 相对于{@link SimpleBeanDefinitionRegistry}而言，{@link DefaultListableBeanFactory}则是
+ * 一个具有注册功能的完整 Bean 工厂，同样是用 ConcurrentHashMap 数据结构来存储注册的 BeanDefinition
+ *
  * Spring's default implementation of the {@link ConfigurableListableBeanFactory}
  * and {@link BeanDefinitionRegistry} interfaces: a full-fledged bean factory
  * based on bean definition metadata, extensible through post-processors.
@@ -154,7 +157,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	/** Map from dependency type to corresponding autowired value */
 	private final Map<Class<?>, Object> resolvableDependencies = new ConcurrentHashMap<>(16);
 
-	/** Map of bean definition objects, keyed by bean name */
+	/** 注册表，存储了 beanName -> BeanDefinition */
 	private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
 	/** Map of singleton and non-singleton bean names, keyed by dependency type */
@@ -163,6 +166,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	/** Map of singleton-only bean names, keyed by dependency type */
 	private final Map<Class<?>, String[]> singletonBeanNamesByType = new ConcurrentHashMap<>(64);
 
+	/** beanName 的列表，按照注册的顺序排序 */
 	/** List of bean definition names, in registration order */
 	private volatile List<String> beanDefinitionNames = new ArrayList<>(256);
 
@@ -840,8 +844,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					updatedDefinitions.add(beanName);
 					this.beanDefinitionNames = updatedDefinitions;
 					if (this.manualSingletonNames.contains(beanName)) {
-						// 如果单例模式的bean名单中有该bean的name，那么移除掉它。
-						// 也就是说着，将一个原本是单例模式的bean重新注册成一个普通的bean
+						// 如果单例模式的 bean 名单中有该 bean 的 name，那么说明它不再是单例对象了，将其移除。
+						// 也就是说着，将一个原本是单例模式的 bean 重新注册成一个普通的 bean
 						Set<String> updatedSingletons = new LinkedHashSet<>(this.manualSingletonNames);
 						updatedSingletons.remove(beanName);
 						this.manualSingletonNames = updatedSingletons;

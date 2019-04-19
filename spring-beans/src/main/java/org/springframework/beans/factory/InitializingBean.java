@@ -17,6 +17,9 @@
 package org.springframework.beans.factory;
 
 /**
+ * 在实例化完成并且进行 Aware 和 BeanPostProcessor 前置处理后，会接着检查当前 bean 对象
+ * 是否实现了 InitializingBean 接口，如果实现了则调用 afterPropertiesSet() 方法
+ *
  * Interface to be implemented by beans that need to react once all their properties
  * have been set by a {@link BeanFactory}: e.g. to perform custom initialization,
  * or merely to check that all mandatory properties have been set.

@@ -609,12 +609,13 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 			if (logger.isDebugEnabled()) {
 				logger.debug("Retrieved dependent beans for bean '" + beanName + "': " + dependencies);
 			}
-			for (String dependentBeanName : dependencies) {
+			for (String dependentBeanName : dependencies) {	// 先销毁所依赖的 bean
 				destroySingleton(dependentBeanName);
 			}
 		}
 
 		// Actually destroy the bean now...
+		// 真正开始销毁bean
 		if (bean != null) {
 			try {
 				bean.destroy();

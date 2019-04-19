@@ -76,13 +76,16 @@ public interface ConversionService {
 	<T> T convert(@Nullable Object source, Class<T> targetType);
 
 	/**
+	 * 该方法将给定的源对象 source 转换为指定的 targetType，TypeDescriptor 提供有关发生转换的源位置和目标位置
+	 * 的附加上下文，通常是对象字段或属性位置。
+	 *
 	 * Convert the given {@code source} to the specified {@code targetType}.
 	 * The TypeDescriptors provide additional context about the source and target locations
 	 * where conversion will occur, often object fields or property locations.
-	 * @param source the source object to convert (may be {@code null})
-	 * @param sourceType context about the source type to convert from
+	 * @param source the source object to convert (may be {@code null})	要转换的源对象，可以为 null
+	 * @param sourceType context about the source type to convert from		source 的类型的上下文，如果 source 为 null，则可以为 null
 	 * (may be {@code null} if source is {@code null})
-	 * @param targetType context about the target type to convert to (required)
+	 * @param targetType context about the target type to convert to (required)			source 要转换的类型的上下文
 	 * @return the converted object, an instance of {@link TypeDescriptor#getObjectType() targetType}
 	 * @throws ConversionException if a conversion exception occurred
 	 * @throws IllegalArgumentException if targetType is {@code null},

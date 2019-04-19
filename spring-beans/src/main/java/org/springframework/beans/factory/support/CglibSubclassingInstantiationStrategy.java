@@ -80,7 +80,8 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 	@Override
 	protected Object instantiateWithMethodInjection(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
 			@Nullable Constructor<?> ctor, @Nullable Object... args) {
-
+		// 通过 CGLIB 生成一个子类对象
+		// 创建 CglibSubclassCreator 实例，然后调用其 instantiate 方法动态创建子类实例，同时实现所需要的 lookup-method 与 replace-method
 		// Must generate CGLIB subclass...
 		return new CglibSubclassCreator(bd, owner).instantiate(ctor, args);
 	}
@@ -117,7 +118,7 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			// 通过 CGLIB 创建一个代理类
 			Class<?> subclass = createEnhancedSubclass(this.beanDefinition);
 			Object instance;
-			// 没有构造器，通过 BeanUtil 使用默认构造器创建一个 Bean 实例
+			// 没有构造器，通过 BeanUtils 使用默认构造器创建一个 Bean 实例
 			if (ctor == null) {
 				instance = BeanUtils.instantiateClass(subclass);
 			} else {
@@ -145,13 +146,18 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		 * definition, using CGLIB.
 		 */
 		private Class<?> createEnhancedSubclass(RootBeanDefinition beanDefinition) {
+			// 创建 Enhancer 对象
 			Enhancer enhancer = new Enhancer();
+			// 设置 Bean 类
 			enhancer.setSuperclass(beanDefinition.getBeanClass());
+			// 设置 Spring 的命名策略
 			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
+			// 设置生成策略
 			if (this.owner instanceof ConfigurableBeanFactory) {
 				ClassLoader cl = ((ConfigurableBeanFactory) this.owner).getBeanClassLoader();
 				enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(cl));
 			}
+			// 过滤，自定义逻辑来指定调用的 callback 下标
 			enhancer.setCallbackFilter(new MethodOverrideCallbackFilter(beanDefinition));
 			enhancer.setCallbackTypes(CALLBACK_TYPES);
 			return enhancer.createClass();
@@ -237,6 +243,9 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 
 
 	/**
+	 * 定义 CGLIB 回调过滤方法的拦截器行为，它继承 CglibIdentitySupport 并实现了 CallbackFilter
+	 * CglibIdentitySupport：CGLIB 的一个回调过滤器
+	 * CglibIdentitySupport：为 CGLIB 提供 hashCode() 和 equals(Object o) 方法，以确保 CGLIB 不会为每个 Bean 生成不同的类
 	 * CGLIB callback for filtering method interception behavior.
 	 */
 	private static class MethodOverrideCallbackFilter extends CglibIdentitySupport implements CallbackFilter {
@@ -247,6 +256,12 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			super(beanDefinition);
 		}
 
+		/**
+		 * 此方法根据 BeanDefinition 中定义的 MethodOverride 不同返回不同的值
+		 * 这里返回的 PASSTHROUGH、LOOKUP_OVERRIDE、METHOD_REPLACER 都是 CALLBACK_TYPES 数组的下标
+		 * @param method
+		 * @return
+		 */
 		@Override
 		public int accept(Method method) {
 			MethodOverride methodOverride = getBeanDefinition().getMethodOverrides().getOverride(method);
@@ -283,15 +298,21 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 
 		@Override
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy mp) throws Throwable {
+
 			// Cast is safe, as CallbackFilter filters are used selectively.
+			// 获得 method 对应的 LookupOverride 对象
 			LookupOverride lo = (LookupOverride) getBeanDefinition().getMethodOverrides().getOverride(method);
+
 			Assert.state(lo != null, "LookupOverride not found");
+
+			// 获得参数
 			Object[] argsToUse = (args.length > 0 ? args : null);  // if no-arg, don't insist on args at all
+
+			// 获得 Bean
 			if (StringUtils.hasText(lo.getBeanName())) {
 				return (argsToUse != null ? this.owner.getBean(lo.getBeanName(), argsToUse) :
 						this.owner.getBean(lo.getBeanName()));
-			}
-			else {
+			} else {
 				return (argsToUse != null ? this.owner.getBean(method.getReturnType(), argsToUse) :
 						this.owner.getBean(method.getReturnType()));
 			}
@@ -314,10 +335,16 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 
 		@Override
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy mp) throws Throwable {
+			// 获得 method 对应的 ReplaceOverride 对象
 			ReplaceOverride ro = (ReplaceOverride) getBeanDefinition().getMethodOverrides().getOverride(method);
+
 			Assert.state(ro != null, "ReplaceOverride not found");
+
 			// TODO could cache if a singleton for minor performance optimization
+			// 获得 MethodReplacer 对象
 			MethodReplacer mr = this.owner.getBean(ro.getMethodReplacerBeanName(), MethodReplacer.class);
+
+			// 执行替换
 			return mr.reimplement(obj, method, args);
 		}
 	}

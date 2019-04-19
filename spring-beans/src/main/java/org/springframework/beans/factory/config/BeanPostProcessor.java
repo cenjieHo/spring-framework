@@ -20,6 +20,8 @@ import org.springframework.beans.BeansException;
 import org.springframework.lang.Nullable;
 
 /**
+ * 该接口可在 Bean 完成实例化后，根据需要对其进行一些配置，增加一些自己的处理逻辑
+ *
  * Factory hook that allows for custom modification of new bean instances,
  * e.g. checking for marker interfaces or wrapping them with proxies.
  *
