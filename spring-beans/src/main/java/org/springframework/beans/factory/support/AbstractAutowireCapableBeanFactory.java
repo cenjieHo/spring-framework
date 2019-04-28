@@ -503,8 +503,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (bean != null) {	// 如果代理对象不为空
 				return bean;	// 则直接返回代理对象
 			}
-		}
-		catch (Throwable ex) {
+		} catch (Throwable ex) {
 			throw new BeanCreationException(mbdToUse.getResourceDescription(), beanName,
 					"BeanPostProcessor before instantiation of bean failed", ex);
 		}
@@ -518,13 +517,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.debug("Finished creating instance of bean '" + beanName + "'");
 			}
 			return beanInstance;
-		}
-		catch (BeanCreationException | ImplicitlyAppearedSingletonException ex) {
+		} catch (BeanCreationException | ImplicitlyAppearedSingletonException ex) {
 			// A previously detected exception with proper bean creation context already,
 			// or illegal singleton state to be communicated up to DefaultSingletonBeanRegistry.
 			throw ex;
-		}
-		catch (Throwable ex) {
+		} catch (Throwable ex) {
 			throw new BeanCreationException(
 					mbdToUse.getResourceDescription(), beanName, "Unexpected exception during bean creation", ex);
 		}
@@ -1155,6 +1152,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// <2> 如果存在工厂方法，则使用 FactoryBean 的 factory-method 来创建，支持静态工厂和实例工厂
+		// 实例工厂：
+		// <bean id="eatFactory" class="it.spring.liao.com.EatFactory "/>
+		// <bean id="eat" factory-bean="eatFactory" factory-method="getInstance"/>
+		//
+		// 静态工厂：<bean id="eat" class="it.spring.liao.com.EatFactory" factory-method="getInstance" />
+		// 可以参考 https://www.jianshu.com/p/24b27c8023bc 的例子
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);	//TODO：这一块逻辑特别复杂，暂时还没有仔细研究
 		}
@@ -1379,6 +1382,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// 并通过 postProcessAfterInstantiation 方法向 bean 的成员变量注入自定义的信息。当然，如果无特殊需求，直接使用配置中的信息注入即可。
 		// 另外，Spring 并不建议大家直接实现 InstantiationAwareBeanPostProcessor 接口，如果想实现这种类型的后置处理器，更建议通过
 		// 继承 InstantiationAwareBeanPostProcessorAdapter 抽象类实现自定义后置处理器
+		// todo: 似乎没怎么用过
 		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
@@ -1719,8 +1723,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					// 为实例化对象设置属性值，依赖注入真真正正实现在这
 					bw.setPropertyValues(mpvs);
 					return;
-				}
-				catch (BeansException ex) {
+				} catch (BeansException ex) {
 					throw new BeanCreationException(
 							mbd.getResourceDescription(), beanName, "Error setting property values", ex);
 				}
@@ -1731,7 +1734,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			original = Arrays.asList(pvs.getPropertyValues());
 		}
 
-		// 获取 TypeConverter = 获取用户自定义的类型转换
+		// 获取 TypeConverter: 获取用户自定义的类型转换
 		TypeConverter converter = getCustomTypeConverter();
 		if (converter == null) {
 			converter = bw;
@@ -1854,8 +1857,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// 若 TypeConverter 为 BeanWrapperImpl 类型，则使用 BeanWrapperImpl 来进行类型转换
 			// 这里主要是因为 BeanWrapperImpl 实现了 PropertyEditorRegistry 接口
 			return ((BeanWrapperImpl) converter).convertForProperty(value, propertyName);
-		}
-		else {
+		} else {
 			// 获得属性对应的 PropertyDescriptor 对象
 			PropertyDescriptor pd = bw.getPropertyDescriptor(propertyName);
 			// 获得属性对应的 setting MethodParameter 对象
@@ -1868,6 +1870,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * 该方法流程：
+	 * 0. 激活 Aware 方法
 	 * 1. 后置处理 postProcessBeforeInitialization()
 	 * 2. 调用用户自定义的 init 方法
 	 * 3. 后置处理 postProcessAfterInitialization()

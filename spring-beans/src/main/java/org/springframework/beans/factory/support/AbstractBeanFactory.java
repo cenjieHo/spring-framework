@@ -273,7 +273,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// 对于单例模式：Spring 在创建 Bean 的时候并不是等Bean完全创建完成后才会将 Bean 添加至缓存中，
 			// 而是不等 Bean 创建完成就会将创建 Bean 的 ObjectFactory 提早加入到缓存中，这样一旦下一个Bean创建的时候需要依赖 bean时则直接使用 ObjectFactory。
 			// 对于原型模式：因为没法利用缓存，所以 Spring 对原型模式的循环依赖处理策略是不处理。
-			if (isPrototypeCurrentlyInCreation(beanName)) {		// 当前正在创建的原型bean中包含该beanName，那么直接抛出异常
+			if (isPrototypeCurrentlyInCreation(beanName)) {
+				// 当前正在创建的原型bean中包含该beanName，那么直接抛出异常
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
@@ -342,8 +343,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							return createBean(beanName, mbd, args);		// 核心：createBean()方法，所有Bean实例的创建，都会委托给该方法实现
-						}
-						catch (BeansException ex) {
+						} catch (BeansException ex) {
 							// Explicitly remove instance from singleton cache: It might have been put there
 							// eagerly by the creation process, to allow for circular reference resolution.
 							// Also remove any beans that received a temporary reference to the bean.
@@ -1297,12 +1297,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					// Use copy of given root bean definition.
 					if (bd instanceof RootBeanDefinition) {
 						mbd = ((RootBeanDefinition) bd).cloneBeanDefinition();
-					}
-					else {
+					} else {
 						mbd = new RootBeanDefinition(bd);
 					}
-				}
-				else {
+				} else {
 					// Child bean definition: needs to be merged with parent.
 					BeanDefinition pbd;
 					try {
@@ -1366,7 +1364,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected void checkMergedBeanDefinition(RootBeanDefinition mbd, String beanName, @Nullable Object[] args)
 			throws BeanDefinitionStoreException {
 
-		if (mbd.isAbstract()) {		// todo: 暂未研究
+		if (mbd.isAbstract()) {
 			throw new BeanIsAbstractException(beanName);
 		}
 	}
@@ -1662,7 +1660,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	protected Object getObjectForBeanInstance(
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
-		// <1> 若为工厂类引用（name 以 & 开头）
+		// <1> 做些校验。若为工厂类引用（name 以 & 开头）
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			// 如果是 NullBean 类型，则直接返回
 			if (beanInstance instanceof NullBean) {

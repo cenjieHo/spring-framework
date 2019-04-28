@@ -17,6 +17,9 @@
 package org.springframework.core.env;
 
 /**
+ * 表示当前应用程序正在运行的环境，确定哪些配置文件（如果有）当前处于活动状态，以及默认情况
+ * 下哪些配置文件（如果有）应处于活动状态
+ *
  * Interface representing the environment in which the current application is running.
  * Models two key aspects of the application environment: <em>profiles</em> and
  * <em>properties</em>. Methods related to property access are exposed via the
@@ -71,6 +74,8 @@ package org.springframework.core.env;
 public interface Environment extends PropertyResolver {
 
 	/**
+	 * 返回此环境下激活的配置文件集
+	 *
 	 * Return the set of profiles explicitly made active for this environment. Profiles
 	 * are used for creating logical groupings of bean definitions to be registered
 	 * conditionally, for example based on deployment environment.  Profiles can be
@@ -86,6 +91,8 @@ public interface Environment extends PropertyResolver {
 	String[] getActiveProfiles();
 
 	/**
+	 * 如果未显式设置激活的配置文件，则返回默认的激活的配置文件集
+	 *
 	 * Return the set of profiles to be active by default when no active profiles have
 	 * been set explicitly.
 	 * @see #getActiveProfiles

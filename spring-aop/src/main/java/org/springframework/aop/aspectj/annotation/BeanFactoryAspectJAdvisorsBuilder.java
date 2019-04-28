@@ -74,6 +74,17 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 
 
 	/**
+	 * 该方法流程如下：
+	 * 1. 从容器中查找所有类型为 Advisor 的 Bean 对应的名称
+	 * 2. 遍历上一步获取到的 bean 名称数组，并获取当前 beanName 对应的 bean 类型（beanType）
+	 * 3. 根据 beanType 判断该 bean 是否包含 Aspect 注解，若不是则不做任何处理
+	 * 4. 调用 advisorFactory.getAdvisors() 获取通知器，
+	 *    其中为目标 bean 的每个不包含 @Pointcut 注解的方法分别调用 getAdvisor 方法
+	 * 	  4.1 getAdvisor 方法主要做了两件事，一个是获取 AspectJ 表达式切点，另一个是创建 Advisor 实现类
+	 * 	  	  4.1.1 创建 AspectJExpressionPointcut 对象，并从方法中的注解中获取表达式，最后设置到切点对象中
+	 * 	  	  4.1.2 创建 Advisor 实现类对象 InstantiationModelAwarePointcutAdvisorImpl，
+	 * 	  	        调用 instantiateAdvice 方法构建通知，即调用 getAdvice 方法根据注解类型创建相应的通知
+	 *
 	 * Look for AspectJ-annotated aspect beans in the current bean factory,
 	 * and return to a list of Spring AOP Advisors representing them.
 	 * <p>Creates a Spring Advisor for each AspectJ advice method.
@@ -84,39 +95,44 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 		List<String> aspectNames = this.aspectBeanNames;
 
 		if (aspectNames == null) {
-			synchronized (this) {
+			synchronized (this) {	// 双重校验锁
 				aspectNames = this.aspectBeanNames;
 				if (aspectNames == null) {
 					List<Advisor> advisors = new ArrayList<>();
 					aspectNames = new ArrayList<>();
+					// 从容器中查找所有类型为 Advisor 的 Bean 对应的名称
 					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 							this.beanFactory, Object.class, true, false);
+					// 遍历 beanNames
 					for (String beanName : beanNames) {
 						if (!isEligibleBean(beanName)) {
 							continue;
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
 						// would be cached by the Spring container but would not have been weaved.
+						// 根据 beanName 获取 bean 的类型
 						Class<?> beanType = this.beanFactory.getType(beanName);
 						if (beanType == null) {
 							continue;
 						}
+
+						// 检测 beanType 是否包含 Aspect 注解，若不是则不做任何处理
 						if (this.advisorFactory.isAspect(beanType)) {
+							// 如果包含，则将该 beanName 加入到 aspectNames
 							aspectNames.add(beanName);
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+								// 获取通知器
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
 								if (this.beanFactory.isSingleton(beanName)) {
 									this.advisorsCache.put(beanName, classAdvisors);
-								}
-								else {
+								} else {
 									this.aspectFactoryCache.put(beanName, factory);
 								}
 								advisors.addAll(classAdvisors);
-							}
-							else {
+							} else {
 								// Per target or per this.
 								if (this.beanFactory.isSingleton(beanName)) {
 									throw new IllegalArgumentException("Bean with name '" + beanName +

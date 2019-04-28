@@ -348,12 +348,10 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 			finally {
 				inputStream.close();
 			}
-		}
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			throw new BeanDefinitionStoreException(
 					"IOException parsing XML document from " + encodedResource.getResource(), ex);
-		}
-		finally {
+		} finally {
 			//加载完成，将该资源从当前线程正在加载的资源缓存中删除
 			currentResources.remove(encodedResource);
 			//如果当前线程正在加载的资源缓存为空，那么直接将该线程绑定的ThreadLocal变量的值删除

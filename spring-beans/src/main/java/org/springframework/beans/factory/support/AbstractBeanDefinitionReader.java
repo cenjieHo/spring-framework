@@ -239,8 +239,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 				throw new BeanDefinitionStoreException(
 						"Could not resolve bean definition resource pattern [" + location + "]", ex);
 			}
-		}
-		else {
+		} else {
 			// Can only load single resources by absolute URL.
 			// 获得 Resource 对象
 			Resource resource = resourceLoader.getResource(location);

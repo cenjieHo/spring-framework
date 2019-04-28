@@ -500,6 +500,8 @@ public abstract class ClassUtils {
 	}
 
 	/**
+	 * 判断右边参数类型是否可以转换为左边参数类型
+	 *
 	 * Check if the right-hand side type may be assigned to the left-hand side
 	 * type, assuming setting by reflection. Considers primitive wrapper
 	 * classes as assignable to the corresponding primitive types.
@@ -530,6 +532,7 @@ public abstract class ClassUtils {
 	}
 
 	/**
+	 * 判断 value 的类型是否可以转换为 type 类型
 	 * Determine if the given type is assignable from the given value,
 	 * assuming setting by reflection. Considers primitive wrapper classes
 	 * as assignable to the corresponding primitive types.

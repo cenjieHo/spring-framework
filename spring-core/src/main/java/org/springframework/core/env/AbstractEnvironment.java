@@ -237,9 +237,10 @@ public abstract class AbstractEnvironment implements ConfigurableEnvironment {
 	 */
 	protected Set<String> doGetActiveProfiles() {
 		synchronized (this.activeProfiles) {
-			if (this.activeProfiles.isEmpty()) {
-				String profiles = getProperty(ACTIVE_PROFILES_PROPERTY_NAME);
+			if (this.activeProfiles.isEmpty()) {	// 如果 activeProfiles 为空，则进行初始化
+				String profiles = getProperty(ACTIVE_PROFILES_PROPERTY_NAME);	// 获得 ACTIVE_PROFILES_PROPERTY_NAME 这个 key 对应的属性值
 				if (StringUtils.hasText(profiles)) {
+					// 设置到 activeProfiles
 					setActiveProfiles(StringUtils.commaDelimitedListToStringArray(
 							StringUtils.trimAllWhitespace(profiles)));
 				}
@@ -255,10 +256,11 @@ public abstract class AbstractEnvironment implements ConfigurableEnvironment {
 			logger.debug("Activating profiles " + Arrays.asList(profiles));
 		}
 		synchronized (this.activeProfiles) {
+			// 清空 activeProfiles
 			this.activeProfiles.clear();
-			for (String profile : profiles) {
-				validateProfile(profile);
-				this.activeProfiles.add(profile);
+			for (String profile : profiles) {	// 遍历 profiles 数组，添加到 activeProfiles 中
+				validateProfile(profile);			// 校验 profile
+				this.activeProfiles.add(profile);	// 添加 profile
 			}
 		}
 	}

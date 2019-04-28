@@ -72,15 +72,19 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
-
+		// 查找合适的通知器
 		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
-		if (advisors.isEmpty()) {
-			return DO_NOT_PROXY;
+		if (advisors.isEmpty()) {	// 如果没有找到
+			return DO_NOT_PROXY;	// 则返回 null
 		}
-		return advisors.toArray();
+		return advisors.toArray();	// 否则，返回找到的通知器
 	}
 
 	/**
+	 * 该方法流程如下：
+	 * 1. 先查找出所有的通知器
+	 * 2. 对通知器进行筛选
+	 *
 	 * Find all eligible Advisors for auto-proxying this class.
 	 * @param beanClass the clazz to find advisors for
 	 * @param beanName the name of the currently proxied bean
@@ -91,8 +95,12 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		// 查找所有的通知器
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		// 筛选可应用在 beanClass 上的 Advisor，通过 ClassFilter 和 MethodMatcher
+		// 对目标类和方法进行匹配
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		// 拓展操作
 		extendAdvisors(eligibleAdvisors);
 		if (!eligibleAdvisors.isEmpty()) {
 			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
@@ -123,6 +131,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 
 		ProxyCreationContext.setCurrentProxiedBeanName(beanName);
 		try {
+			// 调用重载方法
 			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass);
 		}
 		finally {

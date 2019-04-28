@@ -105,7 +105,6 @@ public class SimpleAliasRegistry implements AliasRegistry {
 				String registeredAlias = entry.getKey();	// 拿到该beanName对应的alias
 				if (registeredAlias.equals(alias) || hasAlias(registeredAlias, alias)) {
 					// 如果alias和传入的alias相等则返回true，否则进行递归调用判断是否出现循环指向
-					// todo: 没理解
 					return true;
 				}
 			}
